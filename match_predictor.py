@@ -9,7 +9,6 @@ import sqlite3
 import csv
 from datetime import datetime
 
-fieldnames = ['home_team_api_id','away_team_api_id','home_team_goal','away_team_goal']
 
 def split_lines(input, seed, output1, output2):
   """Distributes lines of 'input' to 'output1' and 'output2' pseudo-randomly."""
@@ -54,11 +53,17 @@ def sqliteToFilteredCSV(co, output, limit):
   
   cursor = co.cursor()
 
-  rows = cursor.execute("SELECT * FROM Match LIMIT " + str(limit)).fetchall()
+  
+  rows = cursor.execute("SELECT home_team_goal, away_team_goal, home_team_api_id, away_team_api_id, date FROM Match LIMIT " + str(limit)).fetchall()
 
   columns = cursor.execute("PRAGMA table_info(Match)").fetchall()
+
+  rowsTeam = cursor.execute("SELECT * FROM Team_Attributes").fetchall()
   
+  columnsTeamAttributes = cursor.execute("PRAGMA table_info(Team_Attributes)").fetchall()
+  # print([i[1] for i in columnsTeamAttributes])
   #cleaning
+  '''
   fields = [[c[1], True] for c in columns]
   l=0
   for e in rows:
@@ -69,19 +74,23 @@ def sqliteToFilteredCSV(co, output, limit):
         removed =True
     if removed:
       l = l + 1
-
   print([f[0] for f in fields if f[1]])
   print("nb data: "+ str(len(rows)) + " - good data: " +str(l))
+  '''
+  # ['id', 'country_id', 'league_id', 'season', 'stage', 'date', 'match_api_id', 'home_team_api_id', 'away_team_api_id', 'home_team_goal', 'away_team_goal']
 
-  with open(output, "w") as csvfile:
-    wb = csv.DictWriter(csvfile, fieldnames)
-
-    for x in rows:
-      ll = {}
-      for i, y in enumerate(x):
-        if columns[i][1] in fieldnames:
-          ll[columns[i][1]] = y
-      wb.writerow(ll)
+  def nearest(items, pivot):
+    print(items)
+    print(pivot)
+    return min(items, key=lambda x: abs(datetime.strptime(x[3].split(' ')[0], '%Y-%m-%d') - pivot))
+  with open(output, "w") as f:
+    for row in rows:
+      score = [str(e) for e in row[:2]]
+      date = datetime.strptime(row[4].split(' ')[0], '%Y-%m-%d')
+      home = nearest([t for t in rowsTeam if t[2] == row[2]], date)
+      away = nearest([t for t in rowsTeam if t[2] == row[3]], date)
+      match = score + [str(a) for a in home if str(a).isdigit()] + [str(a) for a in away if str(a).isdigit()]
+      f.write(','.join(match) + '\n')
 
 # CopiÃ© depuis td7.py
 def read_data(filename):
@@ -99,19 +108,20 @@ def read_data(filename):
   Y = []
   for line in open(filename, 'r').readlines():
     fields = line.split(',')
-    X.append([int(x) for x in fields[0:2]])
-    if fields[2] > fields[3]:
-      Y.append(1)
-    if fields[2] < fields[3]:
-      Y.append(-1)
-    else:
-      Y.append(0)
+    if(len(fields)>0):
+      X.append([int(x) for x in fields[2:]])
+      if fields[0] > fields[1]:
+        Y.append(1)
+      if fields[0] < fields[1]:
+        Y.append(-1)
+      else:
+        Y.append(0)
     # Y.append([int(x) for x in fields[2:4]])
   return X, Y
 
 
 def simple_distance(data1, data2):
-  return math.sqrt(math.pow(data1[1] - data2[1], 2) + math.pow(data1[0] - data2[0], 2))
+  return sum([math.pow(data1[i],2) - math.pow(data2[i],2) for i in range(len(data1))])
 
 def k_nearest_neighbors(x, match, dist_function, k):
   """Retourne la liste des matches les plus proches
@@ -170,14 +180,14 @@ def find_best_k(train_x, train_y, dist_function):
   return best_k
 
 if __name__ == '__main__':
-  def predictMatch(co, train_file, home, away):
+  def predictMatch(co, train_file, home =None, away=None):
     train = read_data(train_file)
 
-    k = 5 #find_best_k(train[0], train[1], simple_distance)
+    k = find_best_k(train[0], train[1], simple_distance)
     print(k)
-    ma = [home, away]
+    ma = train[0][0] # [home, away]
 
-    print("predication pour match: " + getTeamName(co, ma[0]) + " -" +getTeamName(co, ma[1]))
+    #print("predication pour match: " + getTeamName(co, ma[0]) + " -" +getTeamName(co, ma[1]))
     
     rest = match_result_knn(ma, train[0], train[1], simple_distance, k)
     
@@ -188,14 +198,12 @@ if __name__ == '__main__':
     csvfilenames = "data.csv"
     
     sqliteToFilteredCSV(co, csvfilenames, -1)
-    
+    """
     # displayAllTeam(co)
-    '''
     print('entrer abreviation des equipes')
     print('home>', end='')
     home = getTeamID(co, "psg") # input())
     print('away>', end='')
     away = getTeamID(co, "yb") # input())
-
-    predictMatch(co, csvfilenames, home, away)
-    '''
+    """
+    predictMatch(co, csvfilenames)
