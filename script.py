@@ -63,7 +63,9 @@ def load(filename):
   return X, Y
 
 
-def simple_distance(data1, data2):
+def distance(data1, data2):
+  """ distance euclidienne entre 2 matchs
+  """
   return math.sqrt(sum([math.pow(data1[i] - data2[i], 2) for i in range(16)]))
 
 def k_nearest_neighbors(x, match, dist_function, k):
@@ -75,18 +77,9 @@ def k_nearest_neighbors(x, match, dist_function, k):
 
 def match_result_knn(x, train_x, train_y, dist_function, k):
   """predit le resultat d'un match
-  neigh = k_nearest_neighbors(x, train_x, dist_function, k)
-  n = len(neigh)
-  h = a = 0
-  for i in neigh:
-    sco = train_y[i].split()
-    h += int(sco[0])
-    a += int(sco[1])
-  return str(int(h/n)) + ' ' + str(int(a/n))
   """  
   neigh = k_nearest_neighbors(x, train_x, dist_function, k)
   num_win = sum([1 for i in neigh if train_y[i]])
-  # print("probabilité qu'équipe domicile gagne: " + str(float(num_win) / float(k)))
   return num_win > k - num_win
 
 def eval_match_classifier(train_x, train_y, test_x, test_y, classifier, dist_function, k):
@@ -178,7 +171,7 @@ if __name__ == '__main__':
         t2 = chooseTeam(co)
 
         print("predication du match")
-        rest = match_result_knn(t1 + t2, data[0], data[1], simple_distance, k)
+        rest = match_result_knn(t1 + t2, data[0], data[1], distance, k)
         if rest: 
           s = "l'équipe à domicile gagne"
         else:
@@ -192,12 +185,12 @@ if __name__ == '__main__':
         print("liste des equipes")
         displayAllTeam(co)
       elif i == 3:
-        k = find_best_k(data[0], data[1], simple_distance)
+        k = find_best_k(data[0], data[1], distance)
       elif i == 4:
         print('limit>', end='')
         data = createAndLoad(csvfilename, int(input()))
 
       else: 
         m = list(map(int, getTeam(co, 'COR')[0][2:])) + list(map(int, getTeam(co, 'CEL')[0][2:]))
-        rest = match_result_knn(m, data[0], data[1], simple_distance, k)
+        rest = match_result_knn(m, data[0], data[1], distance, k)
         print(rest)
