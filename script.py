@@ -7,8 +7,6 @@ import sqlite3
 from datetime import datetime
 import sys
 
-
-
 def getTeam(co, team_short_name):
   cursor = co.cursor()
   rows = cursor.execute("SELECT t.team_api_id, date, buildUpPlaySpeed, buildUpPlayPassing, chanceCreationPassing, chanceCreationCrossing, chanceCreationShooting, defencePressure, defenceAggression, defenceTeamWidth FROM Team t, Team_Attributes ta WHERE t.team_short_name = '" + team_short_name.upper() + "' AND t.team_api_id = ta.team_api_id").fetchall()
@@ -88,7 +86,7 @@ def match_result_knn(x, train_x, train_y, dist_function, k):
   """  
   neigh = k_nearest_neighbors(x, train_x, dist_function, k)
   num_win = sum([1 for i in neigh if train_y[i]])
-  print("probabilité qu'équipe domicile gagne: " + str(num_win / k))
+  # print("probabilité qu'équipe domicile gagne: " + str(float(num_win) / float(k)))
   return num_win > k - num_win
 
 def eval_match_classifier(train_x, train_y, test_x, test_y, classifier, dist_function, k):
@@ -113,13 +111,12 @@ def find_best_k(train_x, train_y, dist_function):
     out = [x for x in set([int(math.exp(lmini + i * ldelta)) for i in range(num)])]
     out.sort()
     return out
-  print('finding the best k', end='')
+  print('finding the best k...')
   num_splits = 10
   best_k = None
   lowest_error = float('inf')
   for k in sampled_range(1, len(train_x) // 2, 30):
-    print('.', end='')
-    sys.stdout.flush()
+    #print('.', end='')
     skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=0)
     error = 0
     for train_indices, test_indices in skf.split(train_x, train_y):
@@ -171,7 +168,7 @@ if __name__ == '__main__':
       data = createAndLoad(csvfilename, 100)
 
     while True:
-      print("0: Evaluer un match\t1: Assigner le K\t2: Trouver le meilleur K\t3: Afficher list des équipes\t4: Charger données")
+      print("0: Evaluer un match\t1: Assigner le K\t2: Afficher list des équipes\t3: Trouver le meilleur K\t4: Charger données")
       print("choix>", end='')
       i = int(input())
       if i == 0:
