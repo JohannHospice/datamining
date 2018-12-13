@@ -22,6 +22,8 @@ def displayAllTeam(co):
 # filtrer les informations
 # ecrire en csv
 def sqliteToFilteredCSV(co, output, limit):
+  """ Filtre les données et créé 
+  """
   def strToDate(x):
     return datetime.strptime(x.split(' ')[0], '%Y-%m-%d')
   def nearest(items, pivot):
@@ -53,12 +55,20 @@ def sqliteToFilteredCSV(co, output, limit):
   print("# matchs ignorés: " + str(cpt))
 
 def load(filename):
+  """ charge un fichier csv
+  """
+
   X = []
   Y = []
   for line in open(filename, 'r').readlines():
     fields = line.split(',')
     X.append([int(x) for x in fields[2:]])
-    Y.append(fields[0] > fields[1])
+    if fields[0] > fields[1]:
+      Y.append('D')
+    elif fields[0] < fields[1]:
+      Y.append('E')
+    else:
+      Y.append('N')
   print("# matchs chargés: " + str(len(X)))
   return X, Y
 
@@ -76,14 +86,14 @@ def k_nearest_neighbors(x, match, dist_function, k):
   return [di[1] for di in distance_and_indices[:k]]
 
 def match_result_knn(x, train_x, train_y, dist_function, k):
-  """predit le resultat d'un match
+  """ predit le resultat d'un match
   """  
   neigh = k_nearest_neighbors(x, train_x, dist_function, k)
-  num_win = sum([1 for i in neigh if train_y[i]])
-  return num_win > k - num_win
+  m = max([(sum([1 for i in neigh if train_y[i] == x]), x) for x in ['D', 'E', 'N']])
+  return m[1]
 
 def eval_match_classifier(train_x, train_y, test_x, test_y, classifier, dist_function, k):
-  """Evaluates a cancer KNN classifier.
+  """ Evaluates a matchs KNN classifier.
   """
   num_trials = len(test_x)
   num_errors = 0.0
@@ -108,8 +118,9 @@ def find_best_k(train_x, train_y, dist_function):
   num_splits = 10
   best_k = None
   lowest_error = float('inf')
+  print('k:', end='')
   for k in sampled_range(1, len(train_x) // 2, 30):
-    #print('.', end='')
+    print(' ' + str(k), end='')
     skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=0)
     error = 0
     for train_indices, test_indices in skf.split(train_x, train_y):
@@ -144,7 +155,7 @@ if __name__ == '__main__':
       ti = rows[int(input())]
     else: 
       ti = rows[0]
-    return list(map(int, ti[2:]))
+    return team_short_name, list(map(int, ti[2:]))
 
   k = 10
   def createAndLoad(filename, limit):
@@ -167,16 +178,17 @@ if __name__ == '__main__':
       if i == 0:
         print("equipe à domicile")
         t1 = chooseTeam(co)
-        print("equipe exterrieur")
+        print("equipe exterieur")
         t2 = chooseTeam(co)
 
         print("predication du match")
-        rest = match_result_knn(t1 + t2, data[0], data[1], distance, k)
-        if rest: 
-          s = "l'équipe à domicile gagne"
+        rest = match_result_knn(t1[1] + t2[1], data[0], data[1], distance, k)
+        if rest == 'D': 
+          s = t1[0] + " gagne!"
+        elif rest == 'E': 
+          s = t2[0] + " gagne!"
         else:
-          s = "l'équipe à domicile perd ou match null"
-
+          s = "match null!"
         print("resultat du match: " + s)
       elif i == 1:
         print("k>", end='')
@@ -189,8 +201,3 @@ if __name__ == '__main__':
       elif i == 4:
         print('limit>', end='')
         data = createAndLoad(csvfilename, int(input()))
-
-      else: 
-        m = list(map(int, getTeam(co, 'COR')[0][2:])) + list(map(int, getTeam(co, 'CEL')[0][2:]))
-        rest = match_result_knn(m, data[0], data[1], distance, k)
-        print(rest)
